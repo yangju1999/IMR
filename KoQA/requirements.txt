@@ -12,7 +12,4 @@ sentencepiece
 gradio
 scipy
 xformers
-fastapi
-uvicorn 
-streamlit
-streamlit_chat
+

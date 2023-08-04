@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import PeftModel, PeftConfig
 
-peft_model_id = "./outputs_qg/checkpoint-500"  #finetuned 모델 path  
+peft_model_id = "./outputs_qg/checkpoint-3000"  #finetuned 모델 path  
 config = PeftConfig.from_pretrained(peft_model_id)
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,

@@ -1,15 +1,12 @@
 from datasets import load_dataset
+import random 
 
 data = load_dataset("squad_kor_v1")
 
-'''
-data = data.map(
-    lambda x: {'text': f"### 문맥: {x['context']}\n\n### 질문: {x['question']}\n\n### 답변: {x['answers']['text'][0]}<|endoftext|>" }
-)
-'''
+prompts = ['위의 문맥을 읽고 풀 수 있는 문제 하나 만들어줘', '지금까지의 문맥 정보를 바탕으로 질문 하나 생성해줘', '위의 문맥 내용을 통해 맞출 수 있는 문제 한 개만 작성해줘', '위의 문맥을 참고하여 질문 하나 생성해줘']
 
 data = data.map(
-    lambda x: {'text': f"### 문맥: {x['context']}\n\n### 질문: {x['question']}<|endoftext|>" }
+    lambda x: {'text': f"### 문맥: {x['context']}\n\n" + prompts[random.randrange(0,4)]+ f"### 질문: {x['question']}<|endoftext|>" }
 )
 
 
@@ -81,7 +78,7 @@ trainer = transformers.Trainer(
     args=transformers.TrainingArguments(
         per_device_train_batch_size=2,
         gradient_accumulation_steps=1,
-        max_steps=30000, ## 초소량만 학습: 50 step만 학습. 약 4분정도 걸립니다.  train data가 총 6만개, batch size가 2이므로 3만개로 설정할때 1epoch
+        max_steps=3000, ## 초소량만 학습: 50 step만 학습. 약 4분정도 걸립니다.  train data가 총 6만개, batch size가 2이므로 3만개로 설정할때 1epoch
         learning_rate=1e-4,
         fp16=True,
         logging_steps=10,
@@ -99,7 +96,7 @@ model.config.use_cache = True
 def gen(x):
     gened = model.generate(
         **tokenizer(
-            f"### 문맥: {x}\n\n### 질문:",
+            f"### 문맥: {x}\n\n위의 문맥으로 부터 질문 하나 생성해줘### 질문:",
             return_tensors='pt',
             return_token_type_ids=False
         ),
