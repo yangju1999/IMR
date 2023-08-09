@@ -1,21 +1,22 @@
+# dataset load 
 from datasets import load_dataset
 import random 
 
-
+#hugging face에서 squad_kor_v1 데이터 셋 가져오기 
 data = load_dataset("squad_kor_v1")
 
-
+# Answer Generation 모델이므로, 문맥,질문,답변을 모두 포함하여 적절한 프롬프트를 작성해줍니다.
 data = data.map(
     lambda x: {'text': f"### 문맥: {x['context']}\n\n위의 문맥으로부터 다음 질문의 정답을 찾아라 ### 질문: {x['question']}\n\n### 정답: {x['answers']['text'][0]}<|endoftext|>" }
 )
 
 
-
+# pretrain 모델 load
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
-model_id = "EleutherAI/polyglot-ko-5.8b"  # safetensors 컨버팅된 레포
-bnb_config = BitsAndBytesConfig(
+model_id = "EleutherAI/polyglot-ko-5.8b"   # huggingface에서 pretrained 모델 가져오기 
+bnb_config = BitsAndBytesConfig(            # 4 bit 양자화 사용을 위한 코드 
     load_in_4bit=True,
     bnb_4bit_use_double_quant=True,
     bnb_4bit_quant_type="nf4",
@@ -29,13 +30,13 @@ data = data.map(lambda samples: tokenizer(samples["text"]), batched=True)
 
 
 
-
+# 학습에서 peft 방식을 사용하기 위한 코드 
 from peft import prepare_model_for_kbit_training
 
 model.gradient_checkpointing_enable()
 model = prepare_model_for_kbit_training(model)
 
-
+# peft 방식을 사용했을 때, update하는 parameter 개수를 확인하기 위한 함수 
 def print_trainable_parameters(model):
     """
     Prints the number of trainable parameters in the model.
@@ -50,10 +51,10 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
 
-
+# peft 방식 중에서 Lora 를 사용하기 위한 코드 
 from peft import LoraConfig, get_peft_model
 
-config = LoraConfig(
+config = LoraConfig(     # r 값으로 얼마만큼의 parameter 들을 학습할 것인 지 조절
     r=8,
     lora_alpha=32,
     target_modules=["query_key_value"],
@@ -66,19 +67,20 @@ model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
 
-
+#실제 train 하는 부분 
 import transformers
 
 # needed for gpt-neo-x tokenizer
 tokenizer.pad_token = tokenizer.eos_token
 
+#huggingface에서 제공하는 Trainer 모듈을 사용하여 hyperparamer 만 넣어주면 쉽게 학습 가능  
 trainer = transformers.Trainer(
     model=model,
     train_dataset=data["train"],
     args=transformers.TrainingArguments(
         per_device_train_batch_size=2,
         gradient_accumulation_steps=1,
-        max_steps=1000, ## 초소량만 학습: 50 step만 학습. 약 4분정도 걸립니다. train data가 총 6만개, batch size가 2이므로 3만개로 설정할때 1epoch 
+        max_steps=1000, #train data가 총 6만개, batch size가 2이므로 3만개로 설정할때 1epoch 
         learning_rate=1e-4,
         fp16=True,
         logging_steps=10,
@@ -93,6 +95,9 @@ trainer.train()
 model.eval()
 model.config.use_cache = True
 
+
+
+#학습 이후 가볍게 validation 해보기 위한 함수  
 def gen(context, question):
     gened = model.generate(
         **tokenizer(

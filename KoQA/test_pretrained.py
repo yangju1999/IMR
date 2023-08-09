@@ -1,16 +1,18 @@
+#fine tuning 한 모델과의 비교를 위한 pretrained 모델 성능 test 코드 
+
 import torch
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-MODEL = "EleutherAI/polyglot-ko-5.8b"
+MODEL = "EleutherAI/polyglot-ko-5.8b"   #hugging face에서 pretrained 모델 path  
 
-bnb_config = BitsAndBytesConfig(
+bnb_config = BitsAndBytesConfig(    #test할때도 동일하게 4비트 양자화 사용 
     load_in_4bit=True,
     bnb_4bit_use_double_quant=True,
     bnb_4bit_quant_type="nf4",
     bnb_4bit_compute_dtype=torch.bfloat16
 )
 
-
+#hugging face에서 pretrained 모델 load 
 model = AutoModelForCausalLM.from_pretrained(
     MODEL,
     quantization_config=bnb_config,
@@ -20,14 +22,13 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model.eval()
 
-
-
 pipe = pipeline(
     'text-generation', 
     model=model,
     tokenizer=MODEL
 )
 
+#모델 테스트를 위한 함수 (문맥(optional), 질문을 input으로 받아 answer를 output)
 def ask(x, context='', is_input_full=False):
     ans = pipe(
         f"### 질문: {x}\n\n### 맥락: {context}\n\n### 답변:" if context else f"### 질문: {x}\n\n### 답변:", 

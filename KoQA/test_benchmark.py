@@ -1,3 +1,6 @@
+#pretrained 모델과 fine tuned 모델의 성능을 정량적으로 비교하기 위한 코드
+#네이버 영화 리뷰 감정 평가 task에 대한 성능을 비교함.  
+
 '''
 bash  shell에서 다음 명령어들로 데이터 다운받기 
 mkdir -p data_in/KOR/naver_movie
@@ -26,7 +29,7 @@ SEED_NUM = 1234
 np.random.seed(SEED_NUM)
 random.seed(SEED_NUM)
 
-
+# fine tuned 모델 load 
 peft_model_id = "./outputs/checkpoint-500"  #finetuned 모델 path  
 config = PeftConfig.from_pretrained(peft_model_id)
 bnb_config = BitsAndBytesConfig(
@@ -189,6 +192,7 @@ print('finetuned 모델 프롬프트2  방식 테스트: ', accuracy)
 # pretrained 모델 프롬프트 1 방식 테스트 
 tokenizer = AutoTokenizer.from_pretrained("EleutherAI/polyglot-ko-5.8b")
 
+#hugging face에서 pretrained 모델 load
 cls_model = AutoModelForCausalLM.from_pretrained("EleutherAI/polyglot-ko-5.8b",
                                                  torch_dtype=torch.float16,
                                                  low_cpu_mem_usage=True).cuda()
@@ -276,4 +280,4 @@ for i, (test_sent, test_label) in tqdm(enumerate(test_data[['document','label']]
 accuracy_match = [p == t for p, t in zip(pred_tokens, real_labels)]
 accuracy = len([m for m in accuracy_match if m]) / len(real_labels)
 
-print('pretrained 모델 프롬프트 2 방식 테스트: ', ccuracy)
+print('pretrained 모델 프롬프트 2 방식 테스트: ', accuracy)

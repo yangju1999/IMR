@@ -1,3 +1,5 @@
+#언어 모델 API 서버 (8000포트 사용)
+
 from fastapi import FastAPI
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -8,7 +10,6 @@ from peft import PeftModel, PeftConfig
 app = FastAPI()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 
 #model 및 tokenizer load하기 
@@ -26,10 +27,9 @@ tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 
 model.eval()
 
+#요청된 질문으로부터 답변을 생성하여 return 하는 함수 
 def get_answer(prompt):
-    #prompt = """Return True if the given article is fake. article: Boeing CEO says he assured Trump about Air Force One costs answer:"""
     q = f"### 질문: {prompt}\n\n### 답변:"
-    # print(q)
     gened = model.generate(
         **tokenizer(
             q, 

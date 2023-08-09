@@ -1,3 +1,5 @@
+# Demo 용 웹 서버 (8501 포트 사용)
+
 import streamlit as st
 from streamlit_chat import message
 import pandas as pd
@@ -6,14 +8,14 @@ import json
 
 class llama_web():
     def __init__(self):
-        self.URL = "http://127.0.0.1:8000/chat"
+        self.URL = "http://127.0.0.1:8000/chat"  #언어 모델 API 서버 주소(8000 포트) 
         self.count = 0
         st.set_page_config(
                 page_title="Streamlit Chat -Demo",
                 page_icon="robot"
                 )
 
-    def get_answer(self, message):
+    def get_answer(self, message):  #유저 input 을 언어모델 API로 보내어 응답 받아오는 함수  
         param = {'user_message': message}
         resp = requests.post(self.URL, json=param)
         output = json.loads(resp.content)

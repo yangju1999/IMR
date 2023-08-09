@@ -1,19 +1,26 @@
+# dataset load 
 from datasets import load_dataset
 import random 
 
+#hugging face에서 squad_kor_v1 데이터 셋 가져오기 
 data = load_dataset("squad_kor_v1")
 
+# 오버피팅을 방지하기 위해 조금 더 다양한 프롬프트들을 정의함
 prompts = ['위의 문맥을 읽고 풀 수 있는 문제 하나 만들어줘', '지금까지의 문맥 정보를 바탕으로 질문 하나 생성해줘', '위의 문맥 내용을 통해 맞출 수 있는 문제 한 개만 작성해줘', '위의 문맥에서 정답을 찾을 수 있는 질문 하나 생성해줘']
 
+#4가지의 프롬프트 중 랜덤하게 하나를 골라서 문맥, 질문과 조합하여 적절한 학습용 문장을 생성 
 data = data.map(
     lambda x: {'text': f"### 문맥: {x['context']}\n\n" + prompts[random.randrange(0,4)]+ f"### 질문: {x['question']}<|endoftext|>" }
 )
 
+
+
+# pretrain 모델 load
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
-model_id = "EleutherAI/polyglot-ko-5.8b"  # safetensors 컨버팅된 레포
-bnb_config = BitsAndBytesConfig(
+model_id = "EleutherAI/polyglot-ko-5.8b"   # huggingface에서 pretrained 모델 가져오기 
+bnb_config = BitsAndBytesConfig(    # 4 bit 양자화 사용을 위한 코드 
     load_in_4bit=True,
     bnb_4bit_use_double_quant=True,
     bnb_4bit_quant_type="nf4",
@@ -27,13 +34,13 @@ data = data.map(lambda samples: tokenizer(samples["text"]), batched=True)
 
 
 
-
+# 학습에서 peft 방식을 사용하기 위한 코드 
 from peft import prepare_model_for_kbit_training
 
 model.gradient_checkpointing_enable()
 model = prepare_model_for_kbit_training(model)
 
-
+# peft 방식을 사용했을 때, update하는 parameter 개수를 확인하기 위한 함수
 def print_trainable_parameters(model):
     """
     Prints the number of trainable parameters in the model.
@@ -48,10 +55,10 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
 
-
+# peft 방식 중에서 Lora 를 사용하기 위한 코드
 from peft import LoraConfig, get_peft_model
 
-config = LoraConfig(
+config = LoraConfig(     # r 값으로 얼마만큼의 parameter 들을 학습할 것인 지 조절 
     r=8,
     lora_alpha=32,
     target_modules=["query_key_value"],
@@ -65,11 +72,13 @@ print_trainable_parameters(model)
 
 
 
+#실제 train 하는 부분 
 import transformers
 
 # needed for gpt-neo-x tokenizer
 tokenizer.pad_token = tokenizer.eos_token
 
+#huggingface에서 제공하는 Trainer 모듈을 사용하여 hyperparamer 만 넣어주면 쉽게 학습 가능 
 trainer = transformers.Trainer(
     model=model,
     train_dataset=data["train"],
@@ -91,6 +100,8 @@ trainer.train()
 model.eval()
 model.config.use_cache = True
 
+
+#학습 이후 가볍게 validation 해보기 위한 함수  
 def gen(x):
     gened = model.generate(
         **tokenizer(

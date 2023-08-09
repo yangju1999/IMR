@@ -1,3 +1,5 @@
+#언어 모델 API 서버 (8000포트 사용)
+
 from fastapi import FastAPI
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -9,6 +11,8 @@ app = FastAPI()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
+#질문 생성 모델 load
 peft_model_id = "./outputs_qg/checkpoint-1000"  #Question Generation 모델 path  
 config = PeftConfig.from_pretrained(peft_model_id)
 bnb_config = BitsAndBytesConfig(
@@ -23,8 +27,8 @@ tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 
 qg_model.eval()
 
-
-peft_model_id = "./outputs_ag/checkpoint-1000"  #Question Answer 모델 path  
+# 답변 생성 모델 load 
+peft_model_id = "./outputs_ag/checkpoint-1000"  #Answer Generation 모델 path  
 config = PeftConfig.from_pretrained(peft_model_id)
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -38,7 +42,7 @@ tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 
 ag_model.eval()
 
-
+#질문 생성 모델 output 함수(input: context, output: question)
 def qg_output(context):
     q = f"### 문맥: {context}\n\n위의 문맥으로부터 정답을 찾을 수 있는 질문 하나만 만들어줘\n\n### 질문:"
     # print(q)
@@ -58,6 +62,7 @@ def qg_output(context):
     question_end_index = question_start_index + result[question_start_index:].find('?')
     return result[question_start_index+3: question_end_index+1]
 
+#답변 생성 모델 output 함수(input: context, question  output: answer)
 def ag_output(context, question):
     q = f"### 문맥: {context}\n\n위의 문맥으로부터 다음 질문의 정답을 찾아라 ### 질문: {question}\n\n### 정답:"
     # print(q)
@@ -77,7 +82,7 @@ def ag_output(context, question):
     answer_end_index = answer_start_index + result[answer_start_index:].find('.')
     return result[answer_start_index+3: answer_end_index+1]
 
-
+# 위의 두 함수를 조합한 최종 모델 output 함수 (input: context  output: qusetion, answer)
 def get_answer(context):
     question = qg_output(context) 
     answer = ag_output(context, question)
